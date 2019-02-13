@@ -27,7 +27,7 @@ public class TapePipe {
 
 	//Outputs
 	private Mat rgbThresholdOutput = new Mat();
-	private ArrayList<MatOfPoint> findContoursOutput = new ArrayList<MatOfPoint>();
+	private Mat blurOutput = new Mat();
 
 	static {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
@@ -39,15 +39,16 @@ public class TapePipe {
 	public void process(Mat source0) {
 		// Step RGB_Threshold0:
 		Mat rgbThresholdInput = source0;
-		double[] rgbThresholdRed = {0.0, 207.13310580204777};
-		double[] rgbThresholdGreen = {255.0, 255.0};
-		double[] rgbThresholdBlue = {0.0, 255.0};
+		double[] rgbThresholdRed = {0.0, 63.53242320819115};
+		double[] rgbThresholdGreen = {96.31294964028777, 255.0};
+		double[] rgbThresholdBlue = {50.44964028776978, 255.0};
 		rgbThreshold(rgbThresholdInput, rgbThresholdRed, rgbThresholdGreen, rgbThresholdBlue, rgbThresholdOutput);
 
-		// Step Find_Contours0:
-		Mat findContoursInput = rgbThresholdOutput;
-		boolean findContoursExternalOnly = false;
-		findContours(findContoursInput, findContoursExternalOnly, findContoursOutput);
+		// Step Blur0:
+		Mat blurInput = rgbThresholdOutput;
+		BlurType blurType = BlurType.get("Median Filter");
+		double blurRadius = 9.90990990990991;
+		blur(blurInput, blurType, blurRadius, blurOutput);
 
 	}
 
@@ -60,11 +61,11 @@ public class TapePipe {
 	}
 
 	/**
-	 * This method is a generated getter for the output of a Find_Contours.
-	 * @return ArrayList<MatOfPoint> output from Find_Contours.
+	 * This method is a generated getter for the output of a Blur.
+	 * @return Mat output from Blur.
 	 */
-	public ArrayList<MatOfPoint> findContoursOutput() {
-		return findContoursOutput;
+	public Mat blurOutput() {
+		return blurOutput;
 	}
 
 
@@ -84,25 +85,68 @@ public class TapePipe {
 	}
 
 	/**
-	 * Sets the values of pixels in a binary image to their distance to the nearest black pixel.
-	 * @param input The image on which to perform the Distance Transform.
-	 * @param type The Transform.
-	 * @param maskSize the size of the mask.
+	 * An indication of which type of filter to use for a blur.
+	 * Choices are BOX, GAUSSIAN, MEDIAN, and BILATERAL
+	 */
+	enum BlurType{
+		BOX("Box Blur"), GAUSSIAN("Gaussian Blur"), MEDIAN("Median Filter"),
+			BILATERAL("Bilateral Filter");
+
+		private final String label;
+
+		BlurType(String label) {
+			this.label = label;
+		}
+
+		public static BlurType get(String type) {
+			if (BILATERAL.label.equals(type)) {
+				return BILATERAL;
+			}
+			else if (GAUSSIAN.label.equals(type)) {
+			return GAUSSIAN;
+			}
+			else if (MEDIAN.label.equals(type)) {
+				return MEDIAN;
+			}
+			else {
+				return BOX;
+			}
+		}
+
+		@Override
+		public String toString() {
+			return this.label;
+		}
+	}
+
+	/**
+	 * Softens an image using one of several filters.
+	 * @param input The image on which to perform the blur.
+	 * @param type The blurType to perform.
+	 * @param doubleRadius The radius for the blur.
 	 * @param output The image in which to store the output.
 	 */
-	private void findContours(Mat input, boolean externalOnly,
-		List<MatOfPoint> contours) {
-		Mat hierarchy = new Mat();
-		contours.clear();
-		int mode;
-		if (externalOnly) {
-			mode = Imgproc.RETR_EXTERNAL;
+	private void blur(Mat input, BlurType type, double doubleRadius,
+		Mat output) {
+		int radius = (int)(doubleRadius + 0.5);
+		int kernelSize;
+		switch(type){
+			case BOX:
+				kernelSize = 2 * radius + 1;
+				Imgproc.blur(input, output, new Size(kernelSize, kernelSize));
+				break;
+			case GAUSSIAN:
+				kernelSize = 6 * radius + 1;
+				Imgproc.GaussianBlur(input,output, new Size(kernelSize, kernelSize), radius);
+				break;
+			case MEDIAN:
+				kernelSize = 2 * radius + 1;
+				Imgproc.medianBlur(input, output, kernelSize);
+				break;
+			case BILATERAL:
+				Imgproc.bilateralFilter(input, output, -1, radius, radius);
+				break;
 		}
-		else {
-			mode = Imgproc.RETR_LIST;
-		}
-		int method = Imgproc.CHAIN_APPROX_SIMPLE;
-		Imgproc.findContours(input, contours, hierarchy, mode, method);
 	}
 
 
