@@ -13,6 +13,7 @@ import java.util.List;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
+import com.kauailabs.navx.frc.AHRS;
 
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
@@ -30,6 +31,7 @@ import edu.wpi.first.vision.VisionThread;
 import edu.wpi.first.wpilibj.AnalogInput;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.SPI;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
@@ -41,6 +43,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
  * it contains the code necessary to operate a robot with tank drive.
  */
 public class Robot extends TimedRobot {
+  AHRS ahrs;
   CameraServer cameraServer;
   WPI_TalonSRX frontLeft;
   WPI_TalonSRX frontRight;
@@ -63,11 +66,14 @@ public class Robot extends TimedRobot {
   TapeThread tapeThread;
 
   boolean autonomous = false;
-  static double leftPower = 0;
-  static double rightPower = 0;
+  double leftPower = 0;
+  double rightPower = 0;
+  double visionTimeout = 0.5;
 
   @Override
   public void robotInit() {
+
+    ahrs = new AHRS(SPI.Port.kMXP);
 
     timer = new Timer();
 
@@ -106,17 +112,7 @@ public class Robot extends TimedRobot {
 
     if(rightStick.getTrigger()){
       autonomous = true;
-      if(Math.abs(tapeThread.x) > 40){
-        timer.start();
-        if(timer.get()<0.5){
-  drive.arcadeDrive((double)0, checkAgainstFloor((double)tapeThread.x/400));
-        }else{
-          timer.stop();
-        }
-}else{
-  drive.arcadeDrive(0.5, 0.0);
-      System.out.println("xx");
-}
+      visionLogic();
   System.out.println(" teleop" + tapeThread.x);
     }
 }
@@ -132,7 +128,7 @@ public double deadzoneComp(double x){
   }
 }
 
-public static void compareValsWithin(double zone){
+public void compareValsWithin(double zone){
   if(Math.abs(leftPower - rightPower) < zone){
       double newValue = (leftPower + rightPower)/2;
       leftPower = newValue;
@@ -141,12 +137,47 @@ public static void compareValsWithin(double zone){
 }
 
 public static double checkAgainstFloor(double x){
+  //Used for ensuring that motor outputs are greater than the force of friction holding the robot still
+
   double floor = .5;
   if(Math.abs(x) < floor){
     if(x>0){return floor;}else{return -floor;}
   }else{
     return x;
   }
+}
+
+public void visionLogic(){
+/*
+  Vision logic for determining what to do while vision mode is enabled
+  1. Compare to see if the center of the rectangle is outside of ideal conditions
+  2. Turn the robot at the specified speed for the specified duration 
+  3.
+
+  54* across 800 pixels = .0675 degrees/pixel
+
+*/
+
+
+    if(Math.abs(tapeThread.x) > 40 && timer.get() < visionTimeout){
+      drive.arcadeDrive((double)0, checkAgainstFloor((double)tapeThread.x/400));
+    }else if(Math.abs()){
+      
+    }
+
+//   if(Math.abs(tapeThread.x) > 40){
+//     timer.start();
+//     if(timer.get()<0.5){
+// drive.arcadeDrive((double)0, checkAgainstFloor((double)tapeThread.x/400));
+//     }else{
+//       timer.stop();
+//       timer.reset();
+//     }
+// }else{
+// drive.arcadeDrive(0.5, 0.0);
+//   System.out.println("xx");
+// }
+
 }
 
 public static double equation(double a){
